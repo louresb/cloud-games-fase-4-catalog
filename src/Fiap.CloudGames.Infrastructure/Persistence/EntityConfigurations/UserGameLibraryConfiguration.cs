@@ -1,0 +1,27 @@
+﻿using Fiap.CloudGames.Domain.UserGamesLibrary.Entities;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+
+namespace Fiap.CloudGames.Infrastructure.Persistence.EntityConfigurations;
+
+public sealed class UserGameLibraryConfiguration : IEntityTypeConfiguration<UserGameLibrary>
+{
+    public void Configure(EntityTypeBuilder<UserGameLibrary> builder)
+    {
+        builder.ToTable("UserGameLibrary");
+        builder.HasKey(ug => new { ug.UserId, ug.GameId });
+
+        builder.HasOne(ug => ug.Game)
+               .WithMany(g => g.UserGamesLibrary)
+               .HasForeignKey(ug => ug.GameId)
+               .OnDelete(DeleteBehavior.Cascade)
+               .IsRequired();
+
+        builder.Property(ug => ug.PurchaseDate)
+               .IsRequired();
+
+        builder.HasIndex(ug => ug.UserId);
+        builder.HasIndex(ug => ug.GameId);
+        builder.HasIndex(ug => ug.PurchaseDate);
+    }
+}

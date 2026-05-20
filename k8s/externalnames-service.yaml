@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sqlserver-service
+  namespace: fcg-apps
+spec:
+  type: ExternalName
+  externalName: sqlserver-service.fcg-infra.svc.cluster.local
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-service
+  namespace: fcg-apps
+spec:
+  type: ExternalName
+  externalName: rabbitmq-service.fcg-infra.svc.cluster.local
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: loki-service
+  namespace: fcg-apps
+spec:
+  type: ExternalName
+  externalName: loki-service.fcg-infra.svc.cluster.local

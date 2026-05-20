@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: catalog-config
+  namespace: fcg-apps
+  labels:
+    app: catalog-api
+    part-of: fiap-cloud-games
+data:
+  ASPNETCORE_ENVIRONMENT: "Production"
+  ASPNETCORE_URLS: "http://+:8080"
+  Queues__Users__Commands: "users.commands"
+  Queues__Users__Events: "users.events"
+  Queues__Catalog__Commands: "catalog.commands"
+  Queues__Catalog__Events: "catalog.events"
+  Queues__Payments__Commands: "payments.commands"
+  Queues__Payments__Events: "payments.events"
+  Queues__Notifications__Commands: "notifications.commands"
+  Queues__Notifications__Events: "notifications.events"
+  RabbitMq__HostName: "rabbitmq-service.fcg-infra.svc.cluster.local"
+  Loki__Url: "http://loki-service.fcg-infra.svc.cluster.local:3100"
+  Jwt__Issuer: "cloud-games"
+  Jwt__Audience: "cloud-games-audience"
+  Jwt__ExpiryMinutes: "60"
+  Redis__ConnectionString: "redis-service.fcg-infra.svc.cluster.local:6379"
+  Redis__InstanceName: "catalog:"
+  OpenSearch__Uri: "http://opensearch-service.fcg-infra.svc.cluster.local:9200"
+  OpenSearch__IndexName: "games"
+  OpenSearch__DisableSslCertValidation: "true"

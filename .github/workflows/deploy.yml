@@ -1,0 +1,129 @@
+﻿name: Build, Push & Deploy (catalog)
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**/*.md', 'docs/**']
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  ECR_REPOSITORY: cloud-games-catalog-svc
+  EKS_CLUSTER: ${{ vars.EKS_CLUSTER || 'cloud-games-dev-eks' }}
+  K8S_NAMESPACE: ${{ vars.K8S_NAMESPACE || 'fcg-apps' }}
+  K8S_DEPLOYMENT: catalog-deployment
+  IMAGE_NAME: catalog-api
+  AWS_DEPLOY_ROLE_ARN_VALUE: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+  AWS_ACCESS_KEY_ID_VALUE: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY_VALUE: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_SESSION_TOKEN_VALUE: ${{ secrets.AWS_SESSION_TOKEN }}
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: 1
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet restore ./cloud-games-fase-4-catalog.sln
+      - run: dotnet build ./cloud-games-fase-4-catalog.sln -c Release --no-restore
+      - run: dotnet test ./cloud-games-fase-4-catalog.sln -c Release --no-build --logger "trx" --collect "XPlat Code Coverage"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-artifacts
+          if-no-files-found: ignore
+          path: |
+            **/TestResults/**/*.trx
+            **/TestResults/**/coverage.cobertura.xml
+  docker-push:
+    name: Docker build + ECR push
+    needs: build-test
+    runs-on: ubuntu-latest
+    outputs:
+      image_uri: ${{ steps.image.outputs.uri }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC role)
+        if: ${{ env.AWS_DEPLOY_ROLE_ARN_VALUE != '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN_VALUE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configure AWS credentials (AWS Academy temporary keys)
+        if: ${{ env.AWS_DEPLOY_ROLE_ARN_VALUE == '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID_VALUE }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY_VALUE }}
+          aws-session-token: ${{ env.AWS_SESSION_TOKEN_VALUE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, push image
+        id: image
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          GIT_SHA: ${{ github.sha }}
+        run: |
+          IMAGE_URI="$REGISTRY/$ECR_REPOSITORY:$GIT_SHA"
+          docker build -t "$IMAGE_URI" -t "$REGISTRY/$ECR_REPOSITORY:latest" .
+          docker push "$IMAGE_URI"
+          docker push "$REGISTRY/$ECR_REPOSITORY:latest"
+          echo "uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: Rolling update on EKS
+    needs: docker-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC role)
+        if: ${{ env.AWS_DEPLOY_ROLE_ARN_VALUE != '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN_VALUE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configure AWS credentials (AWS Academy temporary keys)
+        if: ${{ env.AWS_DEPLOY_ROLE_ARN_VALUE == '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID_VALUE }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY_VALUE }}
+          aws-session-token: ${{ env.AWS_SESSION_TOKEN_VALUE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --region "$AWS_REGION" --name "$EKS_CLUSTER"
+
+      - name: Apply manifests
+        run: |
+          kubectl apply -f k8s/catalog-configmap.yaml
+          kubectl apply -f k8s/catalog-service.yaml
+          kubectl apply -f k8s/catalog-deployment.yaml
+          kubectl apply -f k8s/catalog-hpa.yaml
+
+      - name: Set image for rolling update
+        run: kubectl -n "$K8S_NAMESPACE" set image deployment/"$K8S_DEPLOYMENT" "$IMAGE_NAME=${{ needs.docker-push.outputs.image_uri }}"
+
+      - name: Wait for rollout
+        run: kubectl -n "$K8S_NAMESPACE" rollout status deployment/"$K8S_DEPLOYMENT" --timeout=5m
