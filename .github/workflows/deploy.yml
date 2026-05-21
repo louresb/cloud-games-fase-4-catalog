@@ -1,4 +1,4 @@
-﻿name: Build, Push & Deploy (catalog)
+name: Build, Push & Deploy (catalog)
 
 on:
   push:
@@ -12,12 +12,12 @@ permissions:
 
 env:
   AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
   ECR_REPOSITORY: cloud-games-catalog-svc
   EKS_CLUSTER: ${{ vars.EKS_CLUSTER || 'cloud-games-dev-eks' }}
   K8S_NAMESPACE: ${{ vars.K8S_NAMESPACE || 'fcg-apps' }}
   K8S_DEPLOYMENT: catalog-deployment
   IMAGE_NAME: catalog-api
-  AWS_DEPLOY_ROLE_ARN_VALUE: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
   AWS_ACCESS_KEY_ID_VALUE: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY_VALUE: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AWS_SESSION_TOKEN_VALUE: ${{ secrets.AWS_SESSION_TOKEN }}
@@ -57,15 +57,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials (OIDC role)
-        if: ${{ env.AWS_DEPLOY_ROLE_ARN_VALUE != '' }}
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN_VALUE }}
-          aws-region: ${{ env.AWS_REGION }}
+      - name: Validate AWS Academy configuration
+        run: |
+          test -n "$AWS_REGION"
+          test -n "$AWS_ACCOUNT_ID"
+          test -n "$AWS_ACCESS_KEY_ID_VALUE"
+          test -n "$AWS_SECRET_ACCESS_KEY_VALUE"
+          test -n "$AWS_SESSION_TOKEN_VALUE"
 
-      - name: Configure AWS credentials (AWS Academy temporary keys)
-        if: ${{ env.AWS_DEPLOY_ROLE_ARN_VALUE == '' }}
+      - name: Configure AWS credentials (AWS Academy temporary credentials)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID_VALUE }}
@@ -73,38 +73,41 @@ jobs:
           aws-session-token: ${{ env.AWS_SESSION_TOKEN_VALUE }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Check ECR repository
+        run: aws ecr describe-repositories --repository-names "$ECR_REPOSITORY" --region "$AWS_REGION"
+
       - name: Log in to ECR
-        id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build, tag, push image
         id: image
         env:
-          REGISTRY: ${{ steps.ecr.outputs.registry }}
           GIT_SHA: ${{ github.sha }}
         run: |
+          REGISTRY="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
           IMAGE_URI="$REGISTRY/$ECR_REPOSITORY:$GIT_SHA"
           docker build -t "$IMAGE_URI" -t "$REGISTRY/$ECR_REPOSITORY:latest" .
           docker push "$IMAGE_URI"
           docker push "$REGISTRY/$ECR_REPOSITORY:latest"
           echo "uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
 
+      - name: Report deployment mode
+        run: |
+          if [ "${{ vars.ENABLE_EKS_DEPLOY }}" = "true" ]; then
+            echo "ENABLE_EKS_DEPLOY=true: optional EKS deploy job will run."
+          else
+            echo "ENABLE_EKS_DEPLOY is not true: EKS deploy is skipped. AWS Academy delivery stops at Docker build + ECR push."
+          fi
+
   deploy:
-    name: Rolling update on EKS
+    name: Rolling update on EKS (optional)
+    if: ${{ vars.ENABLE_EKS_DEPLOY == 'true' }}
     needs: docker-push
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials (OIDC role)
-        if: ${{ env.AWS_DEPLOY_ROLE_ARN_VALUE != '' }}
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN_VALUE }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Configure AWS credentials (AWS Academy temporary keys)
-        if: ${{ env.AWS_DEPLOY_ROLE_ARN_VALUE == '' }}
+      - name: Configure AWS credentials (AWS Academy temporary credentials)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID_VALUE }}
