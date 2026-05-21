@@ -16,6 +16,7 @@ using Fiap.CloudGames.Infrastructure.UserGamesLibrary.Repositories;
 using MassTransit;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using OpenSearch.Client;
@@ -97,6 +98,8 @@ public static class DependencyInjection
 
         services.AddDbContext<AppDbContext>(options =>
         {
+            options.ConfigureWarnings(warnings => warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
+
             options.UseSqlServer(connectionString, sqlOptions =>
             {
                 sqlOptions.MigrationsAssembly(typeof(AppDbContext).Assembly.GetName().Name);
