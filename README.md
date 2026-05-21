@@ -1,4 +1,4 @@
-# Tech Challenge - FIAP Cloud Games - 10NETT - Grupo 30 - Fase 2
+# FIAP Cloud Games - Catalog - Fase 4
 
 ![Build & Tests](https://github.com/FIAP-10NETT-Grupo-30/cloud-games-fase-4-catalog/actions/workflows/build-and-test.yml/badge.svg)
 [![Version](https://img.shields.io/github/v/tag/FIAP-10NETT-Grupo-30/cloud-games-fase-4-catalog?label=version&sort=semver)](https://github.com/FIAP-10NETT-Grupo-30/cloud-games-fase-4-catalog/tags)
@@ -12,8 +12,6 @@ Este repositório contém o **Microsserviço de Catálogo** da aplicação FIAP 
 ## Sumário 📝
 
 - Documentos
-  - [Instruções TC Fase 2 (Repositório de Orquestração)](https://github.com/FIAP-10NETT-Grupo-30/cloud-games-fase-4-orchestration-aws/blob/main/docs/TC-NETT-FASE-2.md)
-  - [Processo de Colaboração (Repositório de Orquestração)](https://github.com/FIAP-10NETT-Grupo-30/cloud-games-fase-4-orchestration-aws/blob/main/docs/PROCESSO-COLABORACAO.md)
   - [Fluxos (Repositório de Orquestração)](https://github.com/FIAP-10NETT-Grupo-30/cloud-games-fase-4-orchestration-aws/blob/main/docs/Fluxos/README.md)
   - [Kubernetes](./k8s/README.md)
 - [Sobre este Microsserviço](#sobre-este-microsservico)
