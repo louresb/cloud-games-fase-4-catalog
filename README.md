@@ -1,8 +1,5 @@
 # FIAP Cloud Games - Catalog - Fase 4
 
-![Build & Tests](https://github.com/FIAP-10NETT-Grupo-30/cloud-games-fase-4-catalog/actions/workflows/build-and-test.yml/badge.svg)
-[![Version](https://img.shields.io/github/v/tag/FIAP-10NETT-Grupo-30/cloud-games-fase-4-catalog?label=version&sort=semver)](https://github.com/FIAP-10NETT-Grupo-30/cloud-games-fase-4-catalog/tags)
-
 ## Microsserviço de Catálogo (CatalogAPI)
 
 Este repositório contém o **Microsserviço de Catálogo** da aplicação FIAP Cloud Games, responsável por gerenciamento de jogos, carrinhos de compra, pedidos, promoções e biblioteca de jogos dos usuários na arquitetura de microsserviços orientada a eventos.
