@@ -9,7 +9,7 @@ Este repositório contém o **Microsserviço de Catálogo** da aplicação FIAP 
 ## Sumário 📝
 
 - Documentos
-  - [Fluxos (Repositório de Orquestração)](https://github.com/FIAP-10NETT-Grupo-30/cloud-games-fase-4-orchestration-aws/blob/main/docs/Fluxos/README.md)
+  - [Fluxos (Repositório de Orquestração)](https://github.com/louresb/cloud-games-fase-4-orchestration-aws/blob/main/docs/Fluxos/README.md)
   - [Kubernetes](./k8s/README.md)
 - [Sobre este Microsserviço](#sobre-este-microsservico)
   - [Responsabilidades](#responsabilidades)
@@ -17,8 +17,8 @@ Este repositório contém o **Microsserviço de Catálogo** da aplicação FIAP 
 - [Como rodar o projeto](#como-rodar-o-projeto)
   - [Pré-requisitos](#pre-requisitos)
   - [Executando localmente com Docker Compose](#executando-localmente-com-docker-compose)
-  - [Executando localmente com . NET](#executando-localmente-com-net)
-  - [Deploy local no Kubernetes (legado/suporte)](#deploy-local-no-kubernetes-legadosuporte)
+  - [Executando localmente com .NET](#executando-localmente-com-net)
+  - [Deploy no Kubernetes](#deploy-no-kubernetes)
 - [Estrutura de Pastas](#estrutura-de-pastas)
 - [Arquitetura do Projeto](#arquitetura-do-projeto)
 - [Variáveis de Ambiente](#variaveis-de-ambiente)
@@ -202,30 +202,30 @@ sequenceDiagram
 
 - [Git](https://git-scm.com/downloads) instalado na sua máquina
 - [Docker Desktop](https://www.docker.com/get-started) instalado e em execução
-- [. NET 8 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) ou superior (para execução local sem Docker)
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) (para execução local sem Docker)
 - [DBeaver](https://dbeaver.io/download/) ou outro cliente de banco de dados compatível com SQL Server
 
 <a id="executando-localmente-com-docker-compose"></a>
 ### Executando localmente com Docker Compose ⚡
 
-Para desenvolvimento local, a execução da aplicação completa pode ser feita via [Repositório de Orquestração](https://github.com/FIAP-10NETT-Grupo-30/cloud-games-fase-4-orchestration-aws), que contém os docker-compose files e scripts necessários.
+Para desenvolvimento local, a execução da aplicação completa pode ser feita via [Repositório de Orquestração](https://github.com/louresb/cloud-games-fase-4-orchestration-aws), que contém os arquivos Docker Compose e scripts necessários.
 
-No ambiente AWS, o padrão atual do projeto utiliza ECS/Fargate com infraestrutura provisionada por Terraform.
+No ambiente AWS, o pipeline publica a imagem no Amazon ECR e permite o deploy no Amazon EKS, com infraestrutura provisionada por Terraform.
 
-Consulte o [guia de execução com Docker Compose](https://github.com/FIAP-10NETT-Grupo-30/cloud-games-fase-4-orchestration-aws/blob/main/docs/Compose/README.md) no repositório de orquestração. 
+Consulte o [guia de execução com Docker Compose](https://github.com/louresb/cloud-games-fase-4-orchestration-aws/blob/main/docs/Compose/README.md) no repositório de orquestração.
 
 <a id="executando-localmente-com-net"></a>
-### Executando localmente com . NET 🔧
+### Executando localmente com .NET 🔧
 
 Para desenvolvimento local sem Docker: 
 
 1. Clone o repositório: 
    ```bash
-   git clone https://github.com/FIAP-10NETT-Grupo-30/cloud-games-fase-4-catalog.git
+   git clone https://github.com/louresb/cloud-games-fase-4-catalog.git
    cd cloud-games-fase-4-catalog
    ```
 
-2. Restaurar as ferramentas do . NET:
+2. Restaurar as ferramentas do .NET:
    ```bash
    dotnet tool restore
    ```
@@ -267,10 +267,10 @@ Para desenvolvimento local sem Docker:
    http://localhost:5214/swagger
    ```
 
-<a id="deploy-local-no-kubernetes-legadosuporte"></a>
-### Deploy local no Kubernetes (legado/suporte) ☸️
+<a id="deploy-no-kubernetes"></a>
+### Deploy no Kubernetes ☸️
 
-Consulte a [documentação de Kubernetes](./k8s/README.md) para instruções detalhadas de execução local/legado.
+Consulte a [documentação de Kubernetes](./k8s/README.md) para instruções detalhadas de execução.
 
 Resumo dos comandos: 
 
@@ -411,19 +411,19 @@ Este microsserviço segue uma **arquitetura em camadas** (Clean Architecture / O
 - **API (Fiap.CloudGames.API)**: Controllers REST, configuração de pipeline HTTP, Swagger e autenticação JWT
 - **Application (Fiap.CloudGames.Application)**: Serviços de aplicação, casos de uso, DTOs, consumers e comandos
 - **Domain (Fiap.CloudGames.Domain)**: Entidades, value objects, enums e interfaces (contratos)
-- **Infrastructure (Fiap.CloudGames.Infrastructure)**: Implementações concretas de persistência (EF Core) e mensageria (implementação atual: RabbitMQ/MassTransit; padrão arquitetural AWS: SQS)
+- **Infrastructure (Fiap.CloudGames.Infrastructure)**: Implementações concretas de persistência (EF Core), cache, busca e mensageria com RabbitMQ/MassTransit
 
 ### Tecnologias Utilizadas
 
-- **Framework**: .NET 8
-- **Infraestrutura alvo**: AWS (ECS/Fargate, SQS, Lambda, CloudWatch, ECR, Terraform)
+- **Framework**: .NET 10
+- **Infraestrutura alvo**: AWS (EKS, ECR, Redis, OpenSearch e Terraform)
 - **Banco de Dados**: SQL Server com Entity Framework Core
-- **Mensageria**: implementação atual deste serviço com RabbitMQ + MassTransit; padrão arquitetural atual em AWS com Amazon SQS
+- **Mensageria**: RabbitMQ + MassTransit
 - **Autenticação**: JWT (JSON Web Tokens)
 - **Logging**: Serilog com sink para Grafana Loki
 - **Documentação**: Swagger/OpenAPI
 - **Containerização**: Docker (multi-stage build)
-- **Orquestração**: Kubernetes (suporte local/legado) e ECS/Fargate (padrão AWS)
+- **Orquestração**: Kubernetes local e Amazon EKS
 
 ### Diagrama de Dependências
 
@@ -436,7 +436,7 @@ graph TD
     
     D --> C
     D --> E[SQL Server]
-    D --> F[Message Broker (SQS - padrao AWS)]
+    D --> F[Message Broker (RabbitMQ)]
     D --> G[Loki]
     
     B --> H[Payments Commands Queue]
@@ -624,7 +624,8 @@ Estas variáveis podem ser configuradas via **appsettings.json** (desenvolviment
 
 ## Repositórios Relacionados 🔗
 
-- **[Orquestração](https://github.com/FIAP-10NETT-Grupo-30/cloud-games-fase-4-orchestration-aws)**: Docker Compose/Kubernetes para desenvolvimento local e AWS (ECS/Fargate + Terraform) como padrão de produção
-- **[Usuários](https://github.com/FIAP-10NETT-Grupo-30/cloud-games-fase-4-users)**: Microsserviço de autenticação e autorização
-- **[Pagamentos](https://github.com/FIAP-10NETT-Grupo-30/cloud-games-fase-4-payments)**: Microsserviço de processamento de pagamentos
-- **[Notificações](https://github.com/FIAP-10NETT-Grupo-30/cloud-games-fase-4-notifications)**: Microsserviço de envio de notificações
+- **[Orquestração](https://github.com/louresb/cloud-games-fase-4-orchestration-aws)**: Docker Compose, Kubernetes e infraestrutura AWS com Terraform
+- **[Usuários](https://github.com/louresb/cloud-games-fase-4-users)**: Microsserviço de autenticação e autorização
+- **[Pagamentos](https://github.com/louresb/cloud-games-fase-4-payments)**: Microsserviço de processamento de pagamentos
+- **[Notificações](https://github.com/louresb/cloud-games-fase-4-notifications)**: Microsserviço de envio de notificações
+- **[Auditoria](https://github.com/louresb/cloud-games-fase-4-audit)**: Auditoria de eventos por tenant e correlação
